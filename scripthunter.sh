@@ -69,6 +69,13 @@ if [ "$silent" = "false" ]; then
     banner
 fi
 
+if [ "$1" = "--cookie" ]
+then
+    cookie="$2"
+    set -- "$3"
+    echo "The cookie value is $cookie"
+fi
+
 target=`echo "$1" | unfurl format "%s://%d%:%P"`
 domain=`echo "$1"| unfurl domain`
 if [ "$silent" = "false" ]; then
@@ -83,7 +90,8 @@ fi
 if [ "$silent" = "false" ]; then
     echo "[*] Running hakrawler"
 fi
-hakrawler -js -url $target -plain -depth 2 -scope strict -insecure > $TMPDIR/hakrawl1.txt
+hakrawler -js -url $target -plain -depth 2 -scope strict -insecure -cookie "$cookie"> $TMPDIR/hakrawl1.txt
+cat $TMPDIR/hakrawl1.txt
 cat $TMPDIR/hakrawl1.txt| unfurl format "%s://%d%:%P%p" | grep -iE "\.js$" | sort -u > $TMPDIR/hakrawler.txt
 hakcount="$(wc -l $TMPDIR/hakrawler.txt | sed -e 's/^[[:space:]]*//' | cut -d " " -f 1)"
 if [ "$silent" = "false" ]; then
@@ -106,7 +114,7 @@ cat $TMPDIR/jsdirs.txt | sort -u | while read jsdir; do
         echo "[*] Running FFUF on $jsdir/"
     fi
     # for more thorough, add .min.js,.common.js,.built.js,.chunk.js,.bundled.js,...
-    ffuf -w $wordlist -u $jsdir/FUZZ -e .js,.min.js -mc 200,304 -o $TMPDIR/ffuf.json -s -t 100 > /dev/null
+    ffuf -H "cookie: $cookie" -w $wordlist -u $jsdir/FUZZ -e .js,.min.js -mc 200,304 -o $TMPDIR/ffuf.json -t 100 > /dev/null
     cat $TMPDIR/ffuf.json | jq -r ".results[].url" | grep "\.js" | unfurl format "%s://%d%:%P%p" | grep -iE "\.js$" | sort -u >$TMPDIR/ffuf_tmp.txt
     cat $TMPDIR/ffuf_tmp.txt >> $TMPDIR/ffuf.txt
     ffuftmpcount="$(wc -l $TMPDIR/ffuf_tmp.txt | sed -e 's/^[[:space:]]*//' | cut -d " " -f 1)"
